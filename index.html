@@ -194,54 +194,68 @@
                <button class="copy-btn" onclick="copyCode('yaml')">Copy</button>
             </div>
             <pre><code class="language-yaml" id="yaml-code">
-version: '3.9'
 services:
   mysql:
     image: mysql:latest
-    restart: always
+    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: "yagya"
-      MYSQL_DATABASE: your_database_name
-      MYSQL_USER: yagya
-      MYSQL_PASSWORD: yagya
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${WORDPRESS_DB_NAME}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
       - "3310:3306"
     volumes:
       - ./.srv/database:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - my-network
 
   wordpress:
     image: wordpress:latest
-    restart: always
+    restart: unless-stopped
     environment:
       WORDPRESS_DB_HOST: mysql:3306
-      WORDPRESS_DB_USER: yagya
-      WORDPRESS_DB_PASSWORD: yagya
-      WORDPRESS_DB_NAME: your_database_name
+      WORDPRESS_DB_USER: ${WORDPRESS_DB_USER}
+      WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME}
     ports:
       - "8080:80"
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     volumes:
       - ./.srv/wordpress:/var/www/html
       - ./themes/:/var/www/html/wp-content/themes
       - ./plugins/:/var/www/html/wp-content/plugins
       - ./mu-plugins/:/var/www/html/wp-content/mu-plugins
       - ./.srv/custom.ini:/usr/local/etc/php/conf.d/custom.ini
-    links:
-      - mysql
-    
+    networks:
+      - my-network
+
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
+    restart: unless-stopped
     environment:
-      MYSQL_USERNAME: yagya
-      MYSQL_ROOT_PASSWORD: yagya
-      PMA_HOST: mysql
+      PMA_HOST: ${PMA_HOST}
+      PMA_USER: ${MYSQL_USER}
+      PMA_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     ports:
       - "8181:80"
     depends_on:
-      - mysql
-    links:
-      - mysql
+      mysql:
+        condition: service_healthy
+    networks:
+      - my-network
+
+networks:
+  my-network:
+    driver: bridge
         </code></pre>
          </div>
       </div>
@@ -250,6 +264,22 @@ services:
       <div class="card">
          <h2>🛠️ Setup Instructions</h2>
          <ol>
+            <li>
+               Create a file named <code>.env</code> in the project root directory. Inside it, copy the
+               codes below and paste:
+               <div class="code-block">
+                  <div class="code-header">
+                     <button class="copy-btn" onclick="copyCode('env')">Copy</button>
+                  </div>
+                  <pre><code class="language-env" id="env-code">MYSQL_ROOT_PASSWORD=your_credentials_here
+MYSQL_USER=your_credentials_here
+MYSQL_PASSWORD=your_credentials_here
+WORDPRESS_DB_USER=your_credentials_here
+WORDPRESS_DB_PASSWORD=your_credentials_here
+WORDPRESS_DB_NAME=your_credentials_here
+PMA_HOST=mysql</code></pre>
+               </div>
+            </li>
             <li>
                Create a folder named <code>.srv</code> in the project root directory.<br>
                Inside it, create a file called <code>custom.ini</code> and paste:
@@ -272,10 +302,12 @@ max_input_time = 1200</code></pre>
                   <div class="code-header">
                      <button class="copy-btn" onclick="copyCode('gitignore')">Copy</button>
                   </div>
-                  <pre><code class="language-gitignore" id="gitignore-code">/.srv/*
+                  <pre><code class="language-gitignore" id="gitignore-code">.env
+/.srv/*
 !/.srv/custom.ini
 /plugins/akismet
 /plugins/hello.php
+/themes/twentytwentytwo
 /themes/twentytwentythree
 /themes/twentytwentyfour
 /themes/twentytwentyfive</code></pre>
@@ -367,6 +399,9 @@ max_input_time = 1200</code></pre>
          } else if (type === "ini") {
             codeText = document.getElementById("ini-code").innerText;
             message = "📄 custom.ini copied!";
+         } else if (type === "env") {
+            codeText = document.getElementById("env-code").innerText;
+            message = "📄 .env copied!";
          } else if (type === "gitignore") {
             codeText = document.getElementById("gitignore-code").innerText;
             message = "📄 .gitignore copied!";
