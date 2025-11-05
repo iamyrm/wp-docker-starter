@@ -1,5 +1,5 @@
 .env
-.PRD_Sample.md
+.PRD.md
 /.srv/*
 !/.srv/custom.ini
 /plugins/akismet
